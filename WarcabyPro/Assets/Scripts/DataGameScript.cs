@@ -19,6 +19,16 @@ public class Vector2 //Wektor dwuwymiarowy
         this.y = y;
     }
 
+    public override bool Equals(object obj)
+    {
+        if(obj.GetType()==typeof(Vector2))
+        {
+            Vector2 z = obj as Vector2;
+            return z.x == this.x && z.y == this.y;
+        }
+        return false;
+    }
+
 }
 
 public class Move
@@ -26,10 +36,19 @@ public class Move
     public Vector2 Beginning_Move; //początek ruchu gracza
     public Vector2 End_Move; //koniec ruchu gracza
     public List<Move> Children; //lista możliwych ruchów do wykonania przez gracza
-    public Move(Vector2 Beginning_Move, Vector2 End_Move)
+    public Move(Vector2 beginning_Move, Vector2 end_Move)
     {
-        this.Beginning_Move = Beginning_Move;
-        this.End_Move = End_Move;
+        Beginning_Move = beginning_Move;
+        End_Move = end_Move;
+    }
+    public override bool Equals(object obj) //przesłaniamy Equals
+    {
+        if(obj.GetType() == typeof(Move)) //sprawdzamy typ naszego obiektu 
+        {
+            Move z = obj as Move;
+            return z.Beginning_Move.Equals(this.Beginning_Move) && z.End_Move.Equals(this.End_Move); //zwracamy ruchy
+        }
+        return false;
     }
 }
 
@@ -58,25 +77,81 @@ public class DataGameScript : MonoBehaviour
         }
     }
 
+    public int Win() //wymóg wygranej
+    {
+        return (ListMoves.Count == 0 ? Controller.GetInstance().MarkedPlayerIndex : -1);
+    }
+
     public void RegisterPawnPosition(DataPawn data, Vector2 position) //rejestrowanie pinoków 
     {
         Board[position.x, position.y] = data;
     }
 
-    static List<Vector2> CheckBorderNoKill(Vector2 filed, DataPawn[,] Board, int BoardSize) //sprawdzamy niebijące ruchy na planszy uwzgedniając granice planszy
+    private List<Move> ListMoves;
+
+    public void UpdateListMoves() //aktualizujemy liste możliwych ruchów
+    {
+        ListMoves = PossibleMoves(Board, Board_size, Controller.GetInstance().MarkedPlayer);
+    }
+
+    public static bool[,] QueenProperty(DataPawn[,] Board)
+    {
+        Vector2 size = new Vector2(Board.GetLength(0), Board.GetLength(1));
+        bool[,] copy = new bool[size.x, size.y];
+        for (int y = 0; y < size.y; y++)
+        {
+            for (int x = 0; x < size.x; x++)
+            {
+                if (Board[x, y])
+                {
+                    copy[x, y] = Board[x, y].Queen;
+                }
+            }
+        }
+        return copy;
+    }
+
+    public static void RestoreOrginalProperty(DataPawn[,] Board, bool[,] copy)
+    {
+        Vector2 size = new Vector2(Board.GetLength(0), Board.GetLength(1));
+        for (int y = 0; y < size.y; y++)
+        {
+            for (int x = 0; x < size.x; x++)
+            {
+                if (Board[x, y])
+                {
+                    Board[x, y].Queen = copy[x, y];
+                }
+            }
+        }
+    }
+
+    public Move IsMoves(Move selectedMove) //sprawdza czy zapsiane ruchy mają odpowedni typ
+    {
+        foreach (Move move in ListMoves)
+        {
+            if (selectedMove.Equals(move))
+            {
+                return move;
+            }
+        }
+        return null;
+    }
+
+    static List<Vector2> CheckBorderNoKill(Vector2 field, DataPawn[,] Board, int BoardSize) //sprawdzamy niebijące ruchy na planszy uwzgedniając granice planszy
     {
         List<Vector2> list = new List<Vector2>();
 
-        DataPawn pawn = Board[filed.x, filed.y];
+        DataPawn pawn = Board[field.x, field.y];
 
         if (pawn.Queen == false)
         {
-            Vector2 target = new Vector2(filed.x + 1, filed.y + pawn.Owner.Direction);
+            Vector2 target = new Vector2(field.x + 1, field.y + pawn.Owner.Direction);
             if (target.x >= 0 && target.x < BoardSize && target.y >= 0 && target.y < BoardSize && Board[target.x, target.y] == null) //sprawdzanie granicy planszy
             {
                 list.Add(target); //dodajemy do listy wyjątek, w którym pionek nie może bić
             }
-            target = new Vector2(filed.x - 1, filed.y + pawn.Owner.Direction);
+            target = new Vector2(field.x - 1, field.y + pawn.Owner.Direction);
             if (target.x >= 0 && target.x < BoardSize && target.y >= 0 && target.y < BoardSize && Board[target.x, target.y] == null)
             {
                 list.Add(target); //dodajemy do listy wyjątek, w którym pionek nie może bić
@@ -85,24 +160,71 @@ public class DataGameScript : MonoBehaviour
         }
         else
         {
-            throw new System.Exception("Jeszcze nic tutaj nie ma");
+            bool leftFinished = false, rightFinished = false;
+            for (int y = field.y + 1; y < BoardSize; y++)
+            {
+                int distance = Mathf.Abs(field.y - y);
+
+                if (!leftFinished && field.x + distance < BoardSize && Board[field.x + distance, y] == null)
+                {
+                    list.Add(new Vector2(field.x + distance, y));
+                }
+                else
+                {
+                    leftFinished = true;
+                }
+
+                if (!rightFinished && field.x - distance >= 0 && Board[field.x - distance, y] == null)
+                {
+                    list.Add(new Vector2(field.x - distance, y));
+                }
+                else
+                {
+                    rightFinished = true;
+                }
+            }
+
+            leftFinished = false;
+            rightFinished = false;
+            for (int y = field.y - 1; y >= 0; y--)
+            {
+                int distance = Mathf.Abs(field.y - y);
+
+                if (!leftFinished && field.x + distance < BoardSize && Board[field.x + distance, y] == null)
+                {
+                    list.Add(new Vector2(field.x + distance, y));
+                }
+                else
+                {
+                    leftFinished = true;
+                }
+
+                if (!rightFinished && field.x - distance >= 0 && Board[field.x - distance, y] == null)
+                {
+                    list.Add(new Vector2(field.x - distance, y));
+                }
+                else
+                {
+                    rightFinished = true;
+                }
+            }
         }
 
         return list;
     }
 
-    static List<Vector2> CheckBorderKill(Vector2 filed, DataPawn[,] Board, int BoardSize) //funkcja do bicia pionków
+    static List<Vector2> CheckBorderKill(Vector2 field, DataPawn[,] Board, int BoardSize) //funkcja do bicia pionków
     {
         List<Vector2> List = new List<Vector2>();
-        DataPawn pawn = Board[filed.x, filed.y];
+        DataPawn pawn = Board[field.x, field.y];
         if (pawn.Queen == false)
         {
-            for (int y = -1; y < 1; y++) // sprawdzamy możliwosci ruchu do okoła
+            for (int y = -1; y <= 1; y += 2) // sprawdzamy możliwosci ruchu do okoła
             {
                 for (int x = -1; x <= 1; x += 2)
                 {
-                    Vector2 target = new Vector2(filed.x + x, filed.y + y);
-                    Vector2 behind_target = new Vector2(filed.x + 2 * x, filed.y + 2 * y);
+                    Vector2 target = new Vector2(field.x + x, field.y + y);
+                    Vector2 behind_target = new Vector2(field.x + 2 * x, field.y + 2 * y);
                     if (behind_target.x >= 0 && behind_target.x < BoardSize && behind_target.y >= 0 && behind_target.y < BoardSize)
                     { //sprawdzamy, czy dane pole jest zajęte
                         DataPawn targetPawn = Board[target.x, target.y];
@@ -115,35 +237,112 @@ public class DataGameScript : MonoBehaviour
             }
         }
 
+        else
+        {
+
+            System.Action<DataPawn[,], Vector2, Vector2> directionIterator = (data, startPoint, direction) =>
+                {
+                    for (int y = startPoint.y + direction.y; y < BoardSize - 1 && y > 0; y += direction.y)
+                    {
+                        int targetX = startPoint.x + direction.x * Mathf.Abs(startPoint.y - y);
+
+                        if (targetX + direction.x >= BoardSize || targetX + direction.x < 0)
+                        {
+                            break;
+                        }
+
+                        if (Board[targetX, y] != null && Board[targetX, y].Owner != pawn.Owner && Board[targetX + direction.x, y + direction.y] == null)
+                        {
+                            for (int behindY = y + direction.y; behindY < BoardSize && behindY >= 0; behindY += direction.y)
+                            {
+                                int behindX = startPoint.x + direction.x * Mathf.Abs(startPoint.y - behindY);
+                                if (behindX >= BoardSize || behindX < 0 || Board[behindX, behindY] != null)
+                                {
+                                    break;
+                                }
+                                else
+                                {
+                                    List.Add(new Vector2(behindX, behindY));
+                                }
+                            }
+                        }
+                    }
+
+                };
+
+            directionIterator(Board, field, new Vector2(1, 1));
+            directionIterator(Board, field, new Vector2(1, -1));
+            directionIterator(Board, field, new Vector2(-1, 1));
+            directionIterator(Board, field, new Vector2(-1, -1));
+        }
+
 
         return List;
     }
 
-    static void ToMove(Vector2 Beginning_Move, Vector2 End_Move, DataPawn[,] Board) //symulacja możliwych ruchów
+    static void ToMove(Vector2 Beginning_Move, Vector2 End_Move, DataPawn[,] Board, System.Action<DataPawn, Vector2> moveAction = null, System.Action<DataPawn> deleteAction = null, System.Action<DataPawn> promoteAction = null) //symulacja możliwych ruchów (callback)
     {
-        Vector2 step = new Vector2(Beginning_Move.x - End_Move.x, Beginning_Move.y - End_Move.y);
-        if (Mathf.Abs(step.y) > 1) //warunek do biciam jeśli przesuneliśmy się o więcej niż jedno pole to znaczy, że pionek zbił
-        {
-            if (Board[Beginning_Move.x, Beginning_Move.y].Queen == false) //jeśli pionek nie jest królową
-            {
-                DataPawn killed = Board[Beginning_Move.x + (step.x) / Mathf.Abs(step.x), Beginning_Move.y + (step.y) / Mathf.Abs(step.y)]; //zbity pionek
-                if (killed != null) //jeśli zbijemy pionek
-                {
-                    Board[Beginning_Move.x + (step.x) / Mathf.Abs(step.x), Beginning_Move.y + (step.y) / Mathf.Abs(step.y)] = null; //usuwanie zbitego pionka
-                    Board[End_Move.x, End_Move.y] = Board[Beginning_Move.x, Beginning_Move.y];
-                    Board[Beginning_Move.x, Beginning_Move.y] = null; //przesuwamy pionek bijący
+        DataPawn marked = Board[Beginning_Move.x, Beginning_Move.y];
+        Vector2 step = new Vector2((End_Move.x - Beginning_Move.x) / Mathf.Abs(End_Move.x - Beginning_Move.x), (End_Move.y - Beginning_Move.y) / Mathf.Abs(End_Move.y - Beginning_Move.y));
+        Debug.Assert(marked != null);
 
+        if (marked.Queen == false)
+        {
+
+            if (Mathf.Abs(End_Move.y - Beginning_Move.y) > 1)
+            {
+                DataPawn killed = Board[Beginning_Move.x + step.x, Beginning_Move.y + step.y];
+                Board[Beginning_Move.x + step.x, Beginning_Move.y + step.y] = null;
+                if (deleteAction != null)
+                {
+                    deleteAction(killed);
                 }
             }
-            else
+
+            Board[End_Move.x, End_Move.y] = marked;
+            Board[Beginning_Move.x, Beginning_Move.y] = null;
+            if (moveAction != null)
             {
-                throw new System.Exception("Jeszcze nie dodane");
+                moveAction(Board[End_Move.x, End_Move.y], End_Move);
+            }
+
+            //sprawdzamy promocje na queen
+            if ((End_Move.y == 0 && marked.Owner.Direction == -1) || (End_Move.y == Board.GetUpperBound(0) && marked.Owner.Direction == 1))
+            {
+                marked.Queen = true;
+                if (promoteAction != null)
+                {
+                    promoteAction(marked);
+                }
             }
         }
-        else //jeśli nie bijemy
+        else
         {
-            Board[End_Move.x, End_Move.y] = Board[Beginning_Move.x, Beginning_Move.y];
-            Board[Beginning_Move.x, Beginning_Move.y] = null; //...to po prostu przesuwamy pionek
+            //sprawdza wrogów na na plnszy na drodze
+            DataPawn killed;
+            for (int i = 1; i < Mathf.Abs(End_Move.y - Beginning_Move.y); i++)
+            {
+
+                if ((killed = Board[Beginning_Move.x + i * step.x, Beginning_Move.y + i * step.y]) != null && killed.Owner != marked.Owner)
+                {
+                    Board[Beginning_Move.x + i * step.x, Beginning_Move.y + i * step.y] = null;
+                    if (deleteAction != null)
+                    {
+                        deleteAction(killed);
+                    }
+                    break;
+                }
+
+            }
+
+            Board[End_Move.x, End_Move.y] = marked;
+            Board[Beginning_Move.x, Beginning_Move.y] = null;
+
+            if (moveAction != null)
+            {
+                moveAction(Board[End_Move.x, End_Move.y], End_Move);
+            }
+
         }
     }
 
@@ -154,16 +353,18 @@ public class DataGameScript : MonoBehaviour
         if (captured.Count == 0) //kiedy kombinacja nie może zbić kolejnego pionka
         {
             move.Children = null;
-            return 1; //koniec kombosa
+            return counter; //koniec kombosa
         }
         else
         {
+            move.Children = new List<Move>();
             foreach (Vector2 target in captured) //dla każdego pionka do zbicia wykonujemy kolejny ruch
             {
                 Move child = new Move(position, target);
-                DataPawn[,] clone = Board.Clone() as DataPawn[,];
-                ToMove(position, target, clone); //tworzenie kopi planszy po wykonaniu ruchu
-                int newComboCounter = ComboCounter(target, clone, BoardSize, counter + 1, child); //pole po ruchu
+                DataPawn[] clone = CopyLine(Board, position, target);
+                bool[,] queenData = DataGameScript.QueenProperty(Board);
+                ToMove(position, target, Board); //tworzenie kopi planszy po wykonaniu ruchu
+                int newComboCounter = ComboCounter(target, Board, BoardSize, counter + 1, child); //pole po ruchu
                 if (newComboCounter > lenghtCombo)
                 {
                     move.Children.Clear();
@@ -174,6 +375,8 @@ public class DataGameScript : MonoBehaviour
                 {
                     move.Children.Add(child);
                 }
+                RestoreLine(Board, clone, position, target);
+                DataGameScript.RestoreOrginalProperty(Board, queenData);
 
             }
             //wykonywanie się kombosa
@@ -183,9 +386,32 @@ public class DataGameScript : MonoBehaviour
         return lenghtCombo;
     }
 
-    public static List<Move> PossibleMoves(DataPawn[,] Board, int BoardSize, Player player) //zwracamy liste ruchów
+    public static DataPawn[] CopyLine(DataPawn[,] Board, Vector2 beginning_Move, Vector2 end_Move)
+    {
+        DataPawn[] data = new DataPawn[Mathf.Abs(beginning_Move.y - end_Move.y) + 1];
+        Vector2 dir = new Vector2((end_Move.x - beginning_Move.x) / Mathf.Abs(end_Move.x - beginning_Move.x),
+            (end_Move.y - beginning_Move.y) / Mathf.Abs(end_Move.y - beginning_Move.y));
+        for (int g = 0; g < data.GetLength(0); g++)
+        {
+            data[g] = Board[beginning_Move.x + dir.x * g, beginning_Move.y + dir.y * g];
+        }
+        return data;
+    } //kopiowanie fragmentu planszy
+
+    public static void RestoreLine(DataPawn[,] Board, DataPawn[] copy, Vector2 beginning_Move, Vector2 end_Move)
+    {
+        Vector2 dir = new Vector2((end_Move.x - beginning_Move.x) / Mathf.Abs(end_Move.x - beginning_Move.x),
+            (end_Move.y - beginning_Move.y) / Mathf.Abs(end_Move.y - beginning_Move.y));
+        for (int f = 0; f < copy.GetLength(0); f++)
+        {
+            Board[beginning_Move.x + dir.x * f, beginning_Move.y + dir.y * f] = copy[f];
+        }
+    }
+
+    private static List<Move> PossibleMoves(DataPawn[,] Board, int BoardSize, Player player) //zwracamy liste ruchów
     {
         List<Move> List = new List<Move>();
+        bool[,] copy = QueenProperty(Board); //zapisujemy dane pionków, ponieważ mogą ulec zmianie w trakcie rekurencyjnego szukania ruchów
         bool foundMove = false;
         int maxCombo = 0;
 
@@ -210,13 +436,16 @@ public class DataGameScript : MonoBehaviour
                     {
                         foundMove = true;
 
-                        List<Vector2> possibleKills = new List<Vector2>();
+                        //List<Vector2> possibleKills = new List<Vector2>();
                         foreach (Vector2 target in captured) //wszystkie znalezione ruchy bijące
                         {
                             Move move = new Move(pawnPosition, target); //tworzymy ruch z pozycji początkowej do pozycji bijącej
-                            DataPawn[,] cloneBoard = Board.Clone() as DataPawn[,];
-                            ToMove(pawnPosition, target, cloneBoard);
-                            int pawnCombo = ComboCounter(target, cloneBoard, BoardSize, 0, move); //sprawdzamy czy jest jakieś combo do wykonania
+                            DataPawn[] cloneBoard = CopyLine(Board, pawnPosition, target);
+                            bool[,] queenData = DataGameScript.QueenProperty(Board);
+                            ToMove(pawnPosition, target, Board);
+                            int pawnCombo = ComboCounter(target, Board, BoardSize, 1, move); //sprawdzamy czy jest jakieś combo do wykonania
+                            RestoreLine(Board, cloneBoard, pawnPosition, target);
+                            DataGameScript.RestoreOrginalProperty(Board, queenData);
                             if (pawnCombo > maxCombo) //jeśli znalazło się wieksze combo od aktualnego
                             {
                                 List.Clear(); //czyścimy liste ruchów
@@ -233,19 +462,45 @@ public class DataGameScript : MonoBehaviour
             }
         }
 
-
+        RestoreOrginalProperty(Board, copy); //po symulacji ruchu przywracamy orginalne dane pionkom
         return List;
     }
 
-    void Start()
+    public Vector2 PawnFiled(DataPawn pawn) //sprawdzamy na którym polu referencja pionka jest równa referencji pionka w tablicy
+    {
+        for (int y = 0; y < Board_size; y++)
+        {
+            for (int x = 0; x < Board_size; x++)
+            {
+                if (pawn == Board[x, y])
+                {
+                    return new Vector2(x, y); //przypisujemy pionka na jego pole
+                }
+            }
+        }
+        throw new System.Exception("Pionek nie jest na planszy");
+    }
+
+    public bool ToMovePawn(Move move)
+    {
+        ToMove(move.Beginning_Move, move.End_Move, Board, ViewBoard.GetInstance().MovePawn, ViewBoard.GetInstance().DeletePawn, ViewBoard.GetInstance().PromotePawn);
+        if (move.Children == null || move.Children.Count == 0) //jeśli nie ma tablicy Children, lub jest ona pusta...
+        {
+            return false;
+        } //to nie ma następstw ruchów danego pionka, którym wybraliśmy, wiec kończymy ture
+        else
+        {
+            ListMoves = move.Children; //aktualizujemy naszą listę ruchów
+            return true;
+        }
+    }
+     
+
+
+    public void Initializet()
     {
         Board = new DataPawn[Board_size, Board_size];
     }
 
-
-    void Update()
-    {
-        
-    }
 
 }

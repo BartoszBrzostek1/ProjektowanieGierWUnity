@@ -7,9 +7,14 @@ public class ViewBoard : MonoBehaviour
 
     public GameObject FieldPrefab;
     public GameObject PawnPrefab;
-    public Color PlayerWhite = Color.white;
-    public Color PlayerGrey = Color.grey;
+    //public Color PlayerWhite = Color.white;
+    //public Color PlayerBlack = Color.grey;
+    //public Color Queen1 = Color.yellow;
+    //public Color Queen2 = Color.green;
+    //public Color LightPawnColor = Color.red;
     private static ViewBoard instance;
+    public GameObject GameEndUI;
+    public GameObject InGameUI;
 
     public static ViewBoard GetInstance()
     {
@@ -32,21 +37,37 @@ public class ViewBoard : MonoBehaviour
     {
         if (preLight)
         {
-            preLight.gameObject.GetComponent<MeshRenderer>().material.color = (preLight.Owner == Controller.GetInstance().players[0] ? Color.white : Color.black); //ustawienie kolorów pionków przed kliknięciem
+            preLight.gameObject.GetComponent<MeshRenderer>().material.color = (preLight.Owner == Controller.GetInstance().players[0] ? Color.white : Color.grey); //ustawienie kolorów pionków przed kliknięciem
         }
         if (toLight)
         {
-            toLight.gameObject.GetComponent<MeshRenderer>().material.color = Color.blue; //ustawienie kolorów pionków po kliknięciu
+            toLight.gameObject.GetComponent<MeshRenderer>().material.color = Color.red; //ustawienie kolorów pionków po kliknięciu
         }
     }
 
-    void Start()
+    public void DeletePawn (DataPawn pawn) //niszczenie pionka
+    {
+        Destroy(pawn.gameObject);
+    }
+
+    public void MovePawn(DataPawn pawn, Vector2 target ) //przesuwanie pionka
+    {
+        pawn.gameObject.transform.position = GetFieldPosition(target.x, target.y, true);
+    }
+
+    public void PromotePawn(DataPawn pawn) //zmiana wyglądu awansowanego pionka
+    {
+        pawn.transform.localScale = new Vector3(1.15f * pawn.transform.localScale.x, pawn.transform.localScale.y, 1.15f * pawn.transform.localScale.z);
+        pawn.GetComponent<MeshRenderer>().material.color = (pawn.Owner == Controller.GetInstance().players[0] ? new Color(22f, 22f, 22f, 1) : new Color(88f, 88f, 88f, 1));
+    }
+
+    public void Initializet()
     {
         for (int y = 0; y < DataGameScript.GetInstance().Board_size; y++)
         {
             for (int x = 0; x < DataGameScript.GetInstance().Board_size; x++) 
             {
-                MeshRenderer newField = (Instantiate(FieldPrefab, GetFieldPosition(x, y, false), Quaternion.identity) as GameObject).GetComponent<MeshRenderer>();
+                MeshRenderer newField = (Instantiate(FieldPrefab, GetFieldPosition(x, y, false), Quaternion.Euler(90.0f, 0.0f, 0.0f)) as GameObject).GetComponent<MeshRenderer>();
                 newField.GetComponent<DataField>().X = x;
                 newField.GetComponent<DataField>().Y = y;
                 if ((x % 2 == 0 && y % 2 == 0) || (x % 2 == 1 && y % 2 == 1)) //warunek na parzyste pola || warunek na nieparzyste
@@ -54,16 +75,16 @@ public class ViewBoard : MonoBehaviour
                     newField.material.color = Color.black;
                     if (y < DataGameScript.GetInstance().BeginRows)
                     {
-                        GameObject Pawn = Instantiate(PawnPrefab, GetFieldPosition(x, y, true), Quaternion.identity) as GameObject;
-                        Pawn.GetComponent<MeshRenderer>().material.color = PlayerWhite;
-                        DataGameScript.GetInstance().RegisterPawnPosition(Pawn.GetComponent<DataPawn>(), new Vector2(x, y));
+                        GameObject pawn = Instantiate(PawnPrefab, GetFieldPosition(x, y, true), Quaternion.Euler(90.0f, 0.0f, 0.0f)) as GameObject;
+                        pawn.GetComponent<MeshRenderer>().material.color = Color.white;
+                        DataGameScript.GetInstance().RegisterPawnPosition(pawn.GetComponent<DataPawn>(), new Vector2(x, y));
 
                     }
                     else if (y >= DataGameScript.GetInstance().Board_size - DataGameScript.GetInstance().BeginRows)
                     {
-                        GameObject Pawn = Instantiate(PawnPrefab, GetFieldPosition(x, y, true), Quaternion.identity) as GameObject;
-                        Pawn.GetComponent<MeshRenderer>().material.color = PlayerGrey;
-                        DataGameScript.GetInstance().RegisterPawnPosition(Pawn.GetComponent<DataPawn>(), new Vector2(x, y));
+                        GameObject pawn = Instantiate(PawnPrefab, GetFieldPosition(x, y, true), Quaternion.Euler(90.0f, 0.0f, 0.0f)) as GameObject;
+                        pawn.GetComponent<MeshRenderer>().material.color = Color.grey;
+                        DataGameScript.GetInstance().RegisterPawnPosition(pawn.GetComponent<DataPawn>(), new Vector2(x, y));
                     }
                 }
                 //wypełniamy plansze
@@ -71,8 +92,4 @@ public class ViewBoard : MonoBehaviour
         }
     }
 
-    void Update()
-    {
-
-    }
 }

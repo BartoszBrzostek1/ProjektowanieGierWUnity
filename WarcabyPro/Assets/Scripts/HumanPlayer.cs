@@ -25,7 +25,7 @@ public class HumanPlayer : Player
         {
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition); // tworzymy promień od kierunku w którym patrzy kamera
             RaycastHit hit;
-            if (Physics.Raycast(ray, out hit, 50.0f)) //klikanie w obiekt jeśli go trafiliśmy
+            if (Physics.Raycast(ray, out hit, 90.0f)) //klikanie w obiekt jeśli go trafiliśmy
             {
                  if (markedState == PlayerState.SelectingPawn) //wybieramy pionek
                  {
@@ -49,7 +49,30 @@ public class HumanPlayer : Player
                  } //klikneliśmy w pionka
                  else if (markedState == PlayerState.SelectingField)  //klikneliśmy w pole
                  {
-
+                    if (hit.collider.tag == Controller.FieldTag) //wybieramy pole
+                    {
+                        DataField fieldXY = hit.collider.GetComponent<DataField>();
+                        Move move = new Move(DataGameScript.GetInstance().PawnFiled(markedPawn), new Vector2(fieldXY.X, fieldXY.Y));
+                        if( (move = DataGameScript.GetInstance().IsMoves(move)) != null) //przypisujemy zmiennej move to co zwróci funkcja IsMoves
+                        {
+                            if(DataGameScript.GetInstance().ToMovePawn(move) == false)
+                            {
+                                MarkedPawn = null;
+                                markedState = PlayerState.SelectingPawn; //tryb wybierania pionka
+                                Controller.GetInstance().Next();
+                            }
+                        }
+                        else
+                        {
+                            MarkedPawn = null;
+                            markedState = PlayerState.SelectingPawn;
+                        }
+                    }
+                    else
+                    {
+                        MarkedPawn = null;
+                        markedState = PlayerState.SelectingPawn;
+                    }
                  }
             }
             else //jeśli nie trafimy to odznaczamy obiekt jeśli to możliwe

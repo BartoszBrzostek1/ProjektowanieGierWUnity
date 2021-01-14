@@ -29,8 +29,20 @@ public class Controller : MonoBehaviour
         }
     }
 
+    public void Next() //zmiana na następny ruch
+    {
+        MarkedPlayerIndex = 1 - MarkedPlayerIndex;
+        DataGameScript.GetInstance().UpdateListMoves();
 
-    void Start()
+        int winner = DataGameScript.GetInstance().Win();
+        if(winner != -1)
+        {
+            ViewBoard.GetInstance().GameEndUI.SetActive(true);
+            ViewBoard.GetInstance().GameEndUI.GetComponent<EndView>().SetEndText(winner);
+        }
+    }
+
+    public void Initializet()
     {
         players[0] = GameObject.Find("Player1").GetComponent<Player>();
         players[0].Direction = 1; //ustawiamy obiekty i ich kierunek
@@ -55,6 +67,7 @@ public class Controller : MonoBehaviour
                 }
             }
         }
+        DataGameScript.GetInstance().UpdateListMoves();
     }
 
 
