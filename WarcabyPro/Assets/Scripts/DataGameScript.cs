@@ -239,41 +239,99 @@ public class DataGameScript : MonoBehaviour
 
         else
         {
+            bool leftFinished = false, rightFinished = false;
+            for (int y = field.y + 1; y < BoardSize - 1; y++)  //pętla po wszystkich y w góre
+            {
 
-            System.Action<DataPawn[,], Vector2, Vector2> directionIterator = (data, startPoint, direction) =>
+                int targetX = field.x + Mathf.Abs(field.y - y);
+                int behindX = targetX + 1;
+
+                //warunki dla "w prawo"
+                if (behindX < BoardSize && !leftFinished && Board[targetX, y] != null && Board[targetX, y].Owner != pawn.Owner) //jeżeli napotkaliśmy pionek do zbicia
                 {
-                    for (int y = startPoint.y + direction.y; y < BoardSize - 1 && y > 0; y += direction.y)
+                    for (int yy = y + 1; yy < BoardSize; yy++)   //musimy do możliwych ruchów dodać wszystkie pola znajdujące się za pionkiem do zbicia, aż nie natrafimy na pole zajęte
                     {
-                        int targetX = startPoint.x + direction.x * Mathf.Abs(startPoint.y - y);
-
-                        if (targetX + direction.x >= BoardSize || targetX + direction.x < 0)
+                        behindX = field.x + Mathf.Abs(field.y - yy);
+                        if (behindX >= BoardSize || Board[behindX, yy] != null)
                         {
                             break;
                         }
-
-                        if (Board[targetX, y] != null && Board[targetX, y].Owner != pawn.Owner && Board[targetX + direction.x, y + direction.y] == null)
+                        else
                         {
-                            for (int behindY = y + direction.y; behindY < BoardSize && behindY >= 0; behindY += direction.y)
-                            {
-                                int behindX = startPoint.x + direction.x * Mathf.Abs(startPoint.y - behindY);
-                                if (behindX >= BoardSize || behindX < 0 || Board[behindX, behindY] != null)
-                                {
-                                    break;
-                                }
-                                else
-                                {
-                                    List.Add(new Vector2(behindX, behindY));
-                                }
-                            }
+                            List.Add(new Vector2(behindX, yy));
                         }
                     }
+                    leftFinished = true;
+                }
 
-                };
+                //warunki dla "w lewo"
+                targetX = field.x - Mathf.Abs(field.y - y);
+                behindX = targetX - 1;
+                if (behindX >= 0 && !rightFinished && Board[targetX, y] != null && Board[targetX, y].Owner != pawn.Owner)
+                {
+                    for (int yy = y + 1; yy < BoardSize; yy++)
+                    {
+                        behindX = field.x - Mathf.Abs(field.y - yy);
+                        if (behindX < 0 || Board[behindX, yy] != null)
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            List.Add(new Vector2(behindX, yy));
+                        }
+                    }
+                    leftFinished = true;
+                }
 
-            directionIterator(Board, field, new Vector2(1, 1));
-            directionIterator(Board, field, new Vector2(1, -1));
-            directionIterator(Board, field, new Vector2(-1, 1));
-            directionIterator(Board, field, new Vector2(-1, -1));
+            }
+
+            leftFinished = false;
+            rightFinished = false;
+
+            for (int y = field.y - 1; y > 0; y--) //pętla po wszystkich y w dół
+            {
+                int targetX = field.x + Mathf.Abs(field.y - y);
+                int behindX = targetX + 1;
+
+                //warunki dla "w prawo"
+                if (behindX < BoardSize && !leftFinished && Board[targetX, y] != null && Board[targetX, y].Owner != pawn.Owner)
+                {
+                    for (int yy = y - 1; yy >= 0; yy--)
+                    {
+                        behindX = field.x + Mathf.Abs(field.y - yy);
+                        if (behindX >= BoardSize || Board[behindX, yy] != null)
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            List.Add(new Vector2(behindX, yy));
+                        }
+                    }
+                    leftFinished = true;
+                }
+
+                //warunki dla "w lewo"
+                targetX = field.x - Mathf.Abs(field.y - y);
+                behindX = targetX - 1;
+                if (behindX >= 0 && !rightFinished && Board[targetX, y] != null && Board[targetX, y].Owner != pawn.Owner)
+                {
+                    for (int yy = y - 1; yy >= 0; yy--)
+                    {
+                        behindX = field.x - Mathf.Abs(field.y - yy);
+                        if (behindX < 0 || Board[behindX, yy] != null)
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            List.Add(new Vector2(behindX, yy));
+                        }
+                    }
+                    leftFinished = true;
+                }
+            }
         }
 
 
@@ -396,7 +454,7 @@ public class DataGameScript : MonoBehaviour
             data[g] = Board[beginning_Move.x + dir.x * g, beginning_Move.y + dir.y * g];
         }
         return data;
-    } //kopiowanie fragmentu planszy
+    } //kopiowanie fragmentu planszy (kopiujemy linie ruchu pionka)
 
     public static void RestoreLine(DataPawn[,] Board, DataPawn[] copy, Vector2 beginning_Move, Vector2 end_Move)
     {
